@@ -12,10 +12,15 @@ export const protobufPackage = "product";
 export interface Empty {
 }
 
+export interface ToggleRequest {
+  id: number;
+}
+
 export interface Product {
   id: number;
   name: string;
   price: number;
+  featured: boolean;
 }
 
 export interface ProductList {
@@ -65,8 +70,66 @@ export const Empty: MessageFns<Empty> = {
   },
 };
 
+function createBaseToggleRequest(): ToggleRequest {
+  return { id: 0 };
+}
+
+export const ToggleRequest: MessageFns<ToggleRequest> = {
+  encode(message: ToggleRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).int32(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ToggleRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseToggleRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.id = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ToggleRequest {
+    return { id: isSet(object.id) ? globalThis.Number(object.id) : 0 };
+  },
+
+  toJSON(message: ToggleRequest): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ToggleRequest>, I>>(base?: I): ToggleRequest {
+    return ToggleRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ToggleRequest>, I>>(object: I): ToggleRequest {
+    const message = createBaseToggleRequest();
+    message.id = object.id ?? 0;
+    return message;
+  },
+};
+
 function createBaseProduct(): Product {
-  return { id: 0, name: "", price: 0 };
+  return { id: 0, name: "", price: 0, featured: false };
 }
 
 export const Product: MessageFns<Product> = {
@@ -79,6 +142,9 @@ export const Product: MessageFns<Product> = {
     }
     if (message.price !== 0) {
       writer.uint32(25).double(message.price);
+    }
+    if (message.featured !== false) {
+      writer.uint32(32).bool(message.featured);
     }
     return writer;
   },
@@ -114,6 +180,14 @@ export const Product: MessageFns<Product> = {
           message.price = reader.double();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.featured = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -128,6 +202,7 @@ export const Product: MessageFns<Product> = {
       id: isSet(object.id) ? globalThis.Number(object.id) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       price: isSet(object.price) ? globalThis.Number(object.price) : 0,
+      featured: isSet(object.featured) ? globalThis.Boolean(object.featured) : false,
     };
   },
 
@@ -142,6 +217,9 @@ export const Product: MessageFns<Product> = {
     if (message.price !== 0) {
       obj.price = message.price;
     }
+    if (message.featured !== false) {
+      obj.featured = message.featured;
+    }
     return obj;
   },
 
@@ -153,6 +231,7 @@ export const Product: MessageFns<Product> = {
     message.id = object.id ?? 0;
     message.name = object.name ?? "";
     message.price = object.price ?? 0;
+    message.featured = object.featured ?? false;
     return message;
   },
 };
@@ -219,6 +298,7 @@ export const ProductList: MessageFns<ProductList> = {
 
 export interface ProductService {
   GetProducts(request: Empty): Promise<ProductList>;
+  ToggleProductFeatured(request: ToggleRequest): Promise<Product>;
 }
 
 export const ProductServiceServiceName = "product.ProductService";
@@ -229,11 +309,18 @@ export class ProductServiceClientImpl implements ProductService {
     this.service = opts?.service || ProductServiceServiceName;
     this.rpc = rpc;
     this.GetProducts = this.GetProducts.bind(this);
+    this.ToggleProductFeatured = this.ToggleProductFeatured.bind(this);
   }
   GetProducts(request: Empty): Promise<ProductList> {
     const data = Empty.encode(request).finish();
     const promise = this.rpc.request(this.service, "GetProducts", data);
     return promise.then((data) => ProductList.decode(new BinaryReader(data)));
+  }
+
+  ToggleProductFeatured(request: ToggleRequest): Promise<Product> {
+    const data = ToggleRequest.encode(request).finish();
+    const promise = this.rpc.request(this.service, "ToggleProductFeatured", data);
+    return promise.then((data) => Product.decode(new BinaryReader(data)));
   }
 }
 

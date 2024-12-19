@@ -14,8 +14,13 @@ const PROTO_PATH = path.resolve(__dirname, '../../shared/product.proto');
 const packageDefinition = protoLoader.loadSync(PROTO_PATH);
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition) as any;
 
+const grpcHost = process.env.GRPC_SERVICE_HOST || 'localhost';
+const grpcPort = process.env.GRPC_SERVICE_PORT || '50051';
+const legacyApiHost = process.env.LEGACY_API_HOST || 'localhost';
+const legacyApiPort = process.env.LEGACY_API_PORT || '3001';
+
 const grpcClient = new protoDescriptor.product.ProductService(
-  'localhost:50051',
+  `${grpcHost}:${grpcPort}`,
   grpc.credentials.createInsecure()
 );
 
@@ -25,6 +30,7 @@ const typeDefs = `#graphql
     id: Int!
     name: String!
     price: Float!
+    featured: Boolean!
   }
 
   type Order {
@@ -37,30 +43,55 @@ const typeDefs = `#graphql
     products: [Product!]!
     orders: [Order!]!
   }
+
+  type Mutation {
+    toggleProductFeatured(id: Int!): Product!
+  }
 `;
 
 // GraphQL resolvers
 const resolvers = {
   Query: {
     products: () => {
+      console.log('[Gateway] Requesting products from gRPC service');
       return new Promise((resolve, reject) => {
         grpcClient.GetProducts({}, (error: any, response: any) => {
           if (error) {
+            console.error('[Gateway] gRPC error:', error);
             reject(error);
             return;
           }
+          console.log('[Gateway] Received products:', response.products);
           resolve(response.products);
         });
       });
     },
     orders: async () => {
+      console.log('[Gateway] Requesting orders from Legacy API');
       try {
-        const response = await axios.get('http://localhost:3001/api/orders');
+        const response = await axios.get(`http://${legacyApiHost}:${legacyApiPort}/api/orders`);
+        console.log('[Gateway] Received orders response from Legacy API');
         return response.data;
       } catch (error) {
-        console.error('Error fetching orders:', error);
+        console.error('[Gateway] Legacy API error:', error);
         throw error;
       }
+    },
+  },
+  Mutation: {
+    toggleProductFeatured: (_: any, { id }: { id: number }) => {
+      console.log('[Gateway] Toggling featured status for product:', id);
+      return new Promise((resolve, reject) => {
+        grpcClient.ToggleProductFeatured({ id }, (error: any, response: any) => {
+          if (error) {
+            console.error('[Gateway] gRPC error:', error);
+            reject(error);
+            return;
+          }
+          console.log('[Gateway] Product updated:', response);
+          resolve(response);
+        });
+      });
     },
   },
 };
@@ -68,6 +99,17 @@ const resolvers = {
 async function startApolloServer() {
   const app = express();
   const httpServer = http.createServer(app);
+
+  app.use(cors({
+    origin: '*',
+    credentials: true
+  }));
+
+  // Add logging for requests
+  app.use((req, res, next) => {
+    console.log(`[Gateway] ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
 
   const server = new ApolloServer({
     typeDefs,
@@ -79,7 +121,6 @@ async function startApolloServer() {
 
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>(),
     express.json(),
     expressMiddleware(server) as unknown as express.RequestHandler
   );

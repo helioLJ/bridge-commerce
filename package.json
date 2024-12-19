@@ -1,0 +1,24 @@
+{
+  "name": "bridgecommerce",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start:legacy": "node legacy-api/legacy-api.js",
+    "build:grpc": "cd grpc-service && tsc",
+    "start:grpc": "node grpc-service/dist/grpc-server.js",
+    "build:gateway": "cd gateway-api && tsc",
+    "start:gateway": "node gateway-api/dist/gateway.js",
+    "start:frontend": "serve frontend/public",
+    "start:all": "concurrently \"npm run start:legacy\" \"npm run build:grpc && npm run start:grpc\" \"npm run build:gateway && npm run start:gateway\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "ts-proto": "^2.6.0"
+  }
+}

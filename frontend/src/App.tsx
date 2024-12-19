@@ -1,53 +1,75 @@
 import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
-import { useQuery, gql } from "@apollo/client";
-import ProductList from "./components/ProductList";
-import OrderList from "./components/OrderList";
+import { useState } from 'react';
+import ProductList from './components/ProductList';
+import OrderList from './components/OrderList';
+import DashboardStats from './components/DashboardStats';
 
-// Create Apollo Client instance
 const client = new ApolloClient({
   uri: 'http://localhost:3000/graphql',
   cache: new InMemoryCache(),
 });
 
-const GET_DATA = gql`
-  query {
-    products {
-      id
-      name
-      price
-    }
-    orders {
-      id
-      status
-      total
-    }
-  }
-`;
+function App() {
+  const [activeView, setActiveView] = useState('dashboard');
 
-function Dashboard() {
-  const { loading, error, data } = useQuery(GET_DATA);
-
-  if (loading) return <p>Carregando...</p>;
-  if (error) return <p>Erro: {error.message}</p>;
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">Dashboard</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ProductList products={data.products} />
-          <OrderList orders={data.orders} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Wrap the app with ApolloProvider
-export default function App() {
   return (
     <ApolloProvider client={client}>
-      <Dashboard />
+      <div className="min-h-screen bg-gray-100">
+        <nav className="bg-white shadow-lg">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex justify-between h-16">
+              <div className="flex space-x-8">
+                <button
+                  onClick={() => setActiveView('dashboard')}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    activeView === 'dashboard' 
+                      ? 'border-blue-500 text-gray-900' 
+                      : 'border-transparent text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setActiveView('products')}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    activeView === 'products' 
+                      ? 'border-blue-500 text-gray-900' 
+                      : 'border-transparent text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  Products
+                </button>
+                <button
+                  onClick={() => setActiveView('orders')}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    activeView === 'orders' 
+                      ? 'border-blue-500 text-gray-900' 
+                      : 'border-transparent text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  Orders
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          {activeView === 'dashboard' && (
+            <div className="grid grid-cols-1 gap-6">
+              <DashboardStats />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProductList compact />
+                <OrderList compact />
+              </div>
+            </div>
+          )}
+          {activeView === 'products' && <ProductList />}
+          {activeView === 'orders' && <OrderList />}
+        </main>
+      </div>
     </ApolloProvider>
   );
 }
+
+export default App;

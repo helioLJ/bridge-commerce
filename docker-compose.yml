@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  legacy-api:
+    build:
+      context: ./legacy-api
+      dockerfile: Dockerfile
+    expose:
+      - "3001"
+    environment:
+      - PORT=3001
+      - HOST=0.0.0.0
+    networks:
+      - app-network
+
+  grpc-service:
+    build:
+      context: .
+      dockerfile: grpc-service/Dockerfile
+    expose:
+      - "50051"
+    environment:
+      - PORT=50051
+      - HOST=0.0.0.0
+    networks:
+      - app-network
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: gateway-api/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - GRPC_SERVICE_HOST=grpc-service
+      - GRPC_SERVICE_PORT=50051
+      - LEGACY_API_HOST=legacy-api
+      - LEGACY_API_PORT=3001
+    networks:
+      - app-network
+    depends_on:
+      - grpc-service
+      - legacy-api
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+    networks:
+      - app-network
+    depends_on:
+      - gateway-api
+
+networks:
+  app-network:
+    driver: bridge
